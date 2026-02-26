@@ -1,10 +1,15 @@
 import express from "express"
 import http from "http"
+import { authRouter } from "./routes/auth.routes"
+
+import {config} from "./config/config"
 
 const app = express()
-
 const server = http.createServer(app)
 
-app.get("/", (req,res)=>res.json("hello"));
+app.use(express.json())
+app.use('/api/v1/auth', authRouter)
 
-server.listen(3000,()=>console.log("server is running on port 3000"))
+app.get("/health", (req,res)=>res.json("Server is up."))
+
+server.listen(config.port,()=>console.log(`server is running on port ${config.port}`))
