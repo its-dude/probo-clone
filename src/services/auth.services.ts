@@ -1,5 +1,5 @@
 import { email, json } from "zod"
-import { userRepository } from "../repositories/index.repo"
+import { userRepository, walletRepository } from "../repositories/index.repo"
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
 import { config } from "../config/config"
@@ -19,7 +19,10 @@ export const signup = async (data: {
     const hashedPassword = await bcrypt.hash(data.password, 10)
     data.password = hashedPassword
 
-   return userRepository.createUser(data)
+   const newUser = await userRepository.createUser(data)
+   const wallet = await walletRepository.createWallet({userId: newUser.id, balance: 1000000})
+
+   return newUser
 }
 
 export const signin = async (data: {
