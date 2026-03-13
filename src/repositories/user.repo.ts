@@ -11,3 +11,11 @@ export const findUserByEmail = (email: string) => {
         }
     })
 }
+
+export const findUserById = (id: number) => {
+    return prisma.user.findUnique({
+        where:{
+            id
+        }
+    })
+}
