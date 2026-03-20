@@ -52,7 +52,7 @@ export const signin = async (req: Request, res: Response) => {
             mesage: err.message
         }) )
 
-        return res.status(400).json({success: false, ...errors})
+        return res.status(400).json({success: false, errors})
     }
 
     try{
