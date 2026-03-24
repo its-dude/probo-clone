@@ -1,6 +1,8 @@
 import { ORDERBOOK } from ".."
 import { holdingRepository, marketRepository, walletRepository } from "../repositories/index.repo"
+import { OrderEntry } from "../types/orderbook"
 import { orderMapToObject } from "../utils/mapToObject"
+import { exchangeBetweenSeller, exchangeWithBuyer } from "./trade.services"
 
 type Order = {
     price: number,
@@ -21,13 +23,27 @@ const validateBuyOrder = async (order: Order) => {
         throw new Error("Insufficient balance");
     }
 
-    if (price <= 0) throw new Error("Invalid price");
+    if (price <= 0 || price/100 < 1) throw new Error("Invalid price");
 
     const market = await marketRepository.getMarketById(marketId);
     if (!market) throw new Error("Market not found");
 
     return true;
 };
+
+const validateSellOrder = async (order: Order) => {
+    const {price, marketId, userId, side, quantity} = order
+
+    if (price <= 0 || price/100 < 1) throw new Error("Invalid price")
+
+    const holding = await holdingRepository.findHolding(userId, marketId, side)
+
+    if (!holding) throw new Error("Not enough stocks")
+    
+    if (holding.quantity < quantity) throw new Error("Not enough stocks")
+    
+    return true
+}
 
 export const buyOrder = async (order: Order) => {
 
@@ -37,6 +53,16 @@ export const buyOrder = async (order: Order) => {
         return buyYesOrder(order)
     } else if (order.side == "NO") {
         return buyNoOrder(order)
+    }
+}
+
+export const sellOrder = async (order: Order) =>  {
+    await validateSellOrder(order)
+
+    if (order.side === "YES") {
+        return sellYesOrder(order)
+    }else {
+        return sellYesOrder(order)
     }
 }
 
@@ -305,6 +331,161 @@ const buyNoOrder = async ({
         message: `Buy order for no added for ${marketId}`,
         orderbook: orderMapToObject(ORDERBOOK)[marketId]
     }
+}
+
+export const sellYesOrder = async ({userId, marketId, price, side, quantity}: Order) => {
+
+    // 1. match with reverted yes at 10-price
+    // 2. match with sell yes at 10-price, 
+    // 3. match with reverted no at price.
+
+    await holdingRepository.moveToLockedHolding(userId,marketId,side, quantity)
+    let remainingQty = quantity
+    const TOTAL = 1000
+    const oppositePrice = TOTAL - price
+    const market = ORDERBOOK.get(marketId)!
+
+    const noPriceLevel =  market.no.get(1000 - price)
+    const yesPriceLevel = market.yes.get(price)
+    
+    //direct match with buy yes at price i.e reverted one
+    if (noPriceLevel) {
+        for (let [buyerId, order] of noPriceLevel.orders) {
+
+            if (buyerId === userId) continue
+            if (order.type !== "reverted") continue
+
+            const matchedQuantity = Math.min(quantity, order.quantity)
+            await exchangeWithBuyer({id:userId, side, price}, {id:buyerId, side, price}, marketId, matchedQuantity)
+            remainingQty -= matchedQuantity
+        }
+    }
+
+    //match with sell no at opposite price
+    if (noPriceLevel && remainingQty > 0) {
+        for (let [sellerId, order] of noPriceLevel?.orders!) {
+    
+            if (sellerId === userId) continue
+            if (order.type !== "sell") continue
+    
+            const matchedQuantity = Math.min(quantity, order.quantity)
+            await exchangeBetweenSeller({id:userId, side, price}, {id: sellerId, side: "NO",price: oppositePrice }, marketId, matchedQuantity)
+            remainingQty -= matchedQuantity
+        }
+    }
+
+    // match with reverted tes at price( with buy no at opposite price)
+    if (yesPriceLevel && remainingQty > 0) {
+        for (let [buyerId, order] of yesPriceLevel?.orders!) {
+    
+            if (buyerId === userId) continue
+            if (order.type !== "reverted") continue
+    
+            const matchedQuantity = Math.min(quantity, order.quantity) 
+            await exchangeWithBuyer({id: userId, side, price}, {id: buyerId, side:"NO", price: 1000 - price}, marketId, matchedQuantity)
+            remainingQty -= matchedQuantity
+        }
+    }
+
+    if (remainingQty > 0) {
+        placeSellOrder({userId,marketId,price,quantity, side})
+    }
+
+     return {
+        message: `Sell order for Yes added for ${marketId}`,
+        orderbook: orderMapToObject(ORDERBOOK)[marketId]
+    }
+}
+
+export const sellNoOrder = async ({userId, marketId, price, side, quantity}: Order) => {
+
+    // 1. match with reverted yes at 10-price
+    // 2. match with sell yes at 10-price, 
+    // 3. match with reverted no at price.
+
+    await holdingRepository.moveToLockedHolding(userId,marketId,side, quantity)
+    let remainingQty = quantity
+    const TOTAL = 1000
+    const oppositePrice = TOTAL - price
+    const market = ORDERBOOK.get(marketId)
+
+    const yesPriceLevel =  market?.yes.get(1000 - price)
+    const noPriceLevel = market?.no.get(price)
+    
+    //direct match with buy no at price i.e reverted one
+    if (yesPriceLevel && remainingQty > 0) {
+        for (let [buyerId, order] of yesPriceLevel.orders) {
+
+            if (buyerId === userId) continue
+            if (order.type !== "reverted") continue
+
+            const matchedQuantity = Math.min(quantity, order.quantity)
+            await exchangeWithBuyer({id:userId, side, price}, {id:buyerId, side:"NO", price}, marketId, matchedQuantity)
+            remainingQty -= matchedQuantity
+        }
+    }
+
+    //match with sell yes at opposite price
+    if (yesPriceLevel && remainingQty >0) {
+        for (let [sellerId, order] of yesPriceLevel?.orders!) {
+    
+            if (sellerId === userId) continue
+            if (order.type !== "sell") continue
+    
+            const matchedQuantity = Math.min(quantity, order.quantity)
+            await exchangeBetweenSeller({id:userId, side, price}, {id: sellerId, side,price: oppositePrice }, marketId, matchedQuantity)
+            remainingQty -= matchedQuantity
+        }
+    }
+
+    // match with reverted no at price( with buy yes at opposite price)
+    if (noPriceLevel && remainingQty >0) {
+        for (let [buyerId, order] of noPriceLevel?.orders!) {
+    
+            if (buyerId === userId) continue
+            if (order.type !== "reverted") continue
+    
+            const matchedQuantity = Math.min(quantity, order.quantity) 
+            await exchangeWithBuyer({id: userId, side, price}, {id: buyerId, side:"YES", price: 1000 - price}, marketId, matchedQuantity)
+            remainingQty -= matchedQuantity
+        }
+    } 
+
+    if (remainingQty > 0) {
+        placeSellOrder({userId,marketId,price,quantity, side})
+    }
+    
+    return {
+        message: `Sell order for No added for ${marketId}`,
+        orderbook: orderMapToObject(ORDERBOOK)[marketId]
+    }
+}
+
+const placeSellOrder = (order: Order) => {
+    if (!ORDERBOOK.get(order.marketId)){
+        ORDERBOOK.set(order.marketId, {
+            yes: new Map(),
+            no: new Map()
+        })
+    }
+    
+    const market = ORDERBOOK.get(order.marketId)!
+    const sideMap = order.side === "YES" ? market.yes : market.no
+
+    if (!sideMap?.get(order.price)) {
+        sideMap?.set(order.price,{
+            total: 0,
+            orders: new Map()
+        })
+    }
+
+    const priceLevel = sideMap.get(order.price)!
+
+    priceLevel.orders.set(order.userId, {
+        quantity: order.quantity,
+        type: "sell"
+    })
+    priceLevel.total += order.quantity
 }
 
 const mintOppositeStock = (order: Order) => {

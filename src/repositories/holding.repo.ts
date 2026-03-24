@@ -2,12 +2,12 @@ import { prisma } from "../config/prisma"
 
 export const createHolding = (userId: number, marketId: number, side: "YES" | "NO", qty: number) => {
     return prisma.holding.create({
-      data: {
-        userId,
-        marketId,
-        side,
-        quantity: qty
-      }
+        data: {
+            userId,
+            marketId,
+            side,
+            quantity: qty
+        }
     })
 }
 
@@ -19,6 +19,22 @@ export const findHolding = (userId: number, marketId: number, side: "YES" | "NO"
                 marketId,
                 side
             }
+        }
+    })
+}
+
+export const moveToLockedHolding = (userId: number, marketId: number, side: "YES" | "NO", qty: number) => {
+    return prisma.holding.update({
+        where: {
+            userId_marketId_side: {
+                userId,
+                marketId,
+                side
+            }
+        },
+        data: {
+            quantity: { decrement: qty }, 
+            locked: { increment: qty }   
         }
     })
 }
@@ -55,7 +71,7 @@ export const lockHolding = (userId: number, marketId: number, side: "YES" | "NO"
 
 export const creditHolding = (userId: number, marketId: number, side: "YES" | "NO", qty: number) => {
     return prisma.holding.update({
-        where:{
+        where: {
             userId_marketId_side: {
                 userId,
                 marketId,
@@ -63,7 +79,7 @@ export const creditHolding = (userId: number, marketId: number, side: "YES" | "N
             }
         },
         data: {
-            quantity: {increment: qty}
+            quantity: { increment: qty }
         }
     })
 }
