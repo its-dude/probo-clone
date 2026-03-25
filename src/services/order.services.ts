@@ -131,6 +131,8 @@ const buyYesOrder = async ({
 
     if (quantityNeeded > 0 && availableNoQuantity > 0 && noPriceLevel) {
         for (let [sellerId, order] of noPriceLevel.orders) {
+            if (order.type === "reverted") continue
+            
             const toTake = Math.min(order.quantity, quantityNeeded)
 
             noPriceLevel.total -= toTake
@@ -268,6 +270,8 @@ const buyNoOrder = async ({
 
     if (quantityNeeded > 0 && availableYesQuantity > 0 && yesPriceLevel) {
         for (let [sellerId, order] of yesPriceLevel.orders) {
+            if (order.type === "reverted") continue
+            
             const toTake = Math.min(order.quantity, quantityNeeded)
 
             yesPriceLevel.total -= toTake
