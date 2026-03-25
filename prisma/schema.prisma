@@ -55,8 +55,6 @@ model Trade {
   marketId Int
   market   Market @relation(fields: [marketId], references: [id])
 
-  symbol String
-
   side Side
 
   price Int
