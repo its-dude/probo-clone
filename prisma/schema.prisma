@@ -78,7 +78,7 @@ model Market {
   id          Int       @id @default(autoincrement())
   title       String
   description String
-  resolution  Side
+  resolution  Side?
   holdings    Holding[]
   orders      Order[]
   trades      Trade[]

@@ -8,3 +8,15 @@ export const getMarketById = (marketId: number) => {
     })
 }
 
+export const updateResolution = (marketId: number, side: "YES"| "NO") => {
+    return prisma.market.update({
+        where: {
+            id: marketId
+        },
+        data: {
+            resolution: side
+        }
+    })
+}
+
+

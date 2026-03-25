@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client"
 import { prisma } from "../config/prisma"
 
 export const createWallet = (data: { userId: number, balance: number }) => {
@@ -94,4 +95,27 @@ export const deductLockedFunds = async (userId: number, amount: number) => {
     }
 
     return true
+}
+
+export const updateBalanceByUserIdTx = async (tx: Prisma.TransactionClient, userId: number, amount: number) => {
+    return tx.wallet.update({
+        where: {
+            userId
+        },
+        data: {
+            balance: {increment: amount}
+        }
+    })
+}
+
+export const refundWalletByUserIdTx = async (tx: Prisma.TransactionClient, userId: number, amount: number) => {
+    return tx.wallet.update({
+        where: {
+            userId
+        },
+        data: {
+            balance: {increment: amount},
+            locked: {decrement: amount}
+        }
+    })
 }

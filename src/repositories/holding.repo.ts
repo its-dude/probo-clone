@@ -1,4 +1,5 @@
 import { prisma } from "../config/prisma"
+import { Prisma } from "@prisma/client"
 
 export const createHolding = (userId: number, marketId: number, side: "YES" | "NO", qty: number) => {
     return prisma.holding.create({
@@ -80,6 +81,28 @@ export const creditHolding = (userId: number, marketId: number, side: "YES" | "N
         },
         data: {
             quantity: { increment: qty }
+        }
+    })
+}
+
+export const getHoldingsByMarketAndSideTx = (tx: Prisma.TransactionClient , marketId: number, side: "YES"|"NO") => {
+    return tx.holding.findMany({
+        where: {
+            marketId,
+            side,
+        },
+        select: {
+            userId: true,
+            quantity: true,
+            locked: true
+        }
+    })
+}
+
+export const deleteManyByMarketIdTx = (tx: Prisma.TransactionClient, marketId: number) => {
+    return tx.holding.deleteMany({
+        where: {
+            marketId
         }
     })
 }
