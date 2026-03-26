@@ -23,7 +23,7 @@ const validateBuyOrder = async (order: Order) => {
         throw new Error("Insufficient balance");
     }
 
-    if (price <= 0 || price/100 < 1) throw new Error("Invalid price");
+    if (price < 10 || price >= 1000 ) throw new Error("Invalid price");
 
     const market = await marketRepository.getMarketById(marketId);
     if (!market) throw new Error("Market not found");
@@ -34,7 +34,7 @@ const validateBuyOrder = async (order: Order) => {
 const validateSellOrder = async (order: Order) => {
     const {price, marketId, userId, side, quantity} = order
 
-    if (price <= 0 || price/100 < 1) throw new Error("Invalid price")
+    if (price < 10 || price >= 1000 ) throw new Error("Invalid price")
 
     const holding = await holdingRepository.findHolding(userId, marketId, side)
 
