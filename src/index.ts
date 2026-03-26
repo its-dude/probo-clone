@@ -7,11 +7,13 @@ import {config} from "./config/config"
 import { Orderbook } from "./types/orderbook"
 import { orderRouter } from "./routes/order.routes"
 import { marketRouter } from "./routes/market.routes"
+import { initOrderbookSubscriber } from "./events/orderbook.subscriber"
 
 const app = express()
 const server = http.createServer(app)
 
 export const ORDERBOOK = new Map<number, Orderbook>()
+initOrderbookSubscriber()
 
 app.use(express.json())
 

@@ -1,4 +1,5 @@
 import { ORDERBOOK } from ".."
+import { publishOrderbookUpdate } from "../events/orderbook.publisher"
 import { holdingRepository, marketRepository, walletRepository } from "../repositories/index.repo"
 import { OrderEntry } from "../types/orderbook"
 import { orderMapToObject } from "../utils/mapToObject"
@@ -49,10 +50,11 @@ export const buyOrder = async (order: Order) => {
 
     await validateBuyOrder(order)
     
+    
     if (order.side == "YES") {
-        return buyYesOrder(order)
+        return await buyYesOrder(order)
     } else if (order.side == "NO") {
-        return buyNoOrder(order)
+        return await buyNoOrder(order)
     }
 }
 
@@ -82,7 +84,7 @@ const buyYesOrder = async ({
     let availableQuantity = 0
     let availableNoQuantity = 0
 
-    let market = ORDERBOOK.get(marketId)
+    let market = ORDERBOOK.get(marketId)!
     const yesPriceLevel = market?.yes?.get(price)
     const noPriceLevel = market?.no?.get(1000 - price)
     const revertedNoPriceLevel = market?.no?.get(price)
@@ -188,8 +190,7 @@ const buyYesOrder = async ({
         // //convert it to opposite side and place in orderbook
         // console.dir(ORDERBOOK,{depth: null})
         mintOppositeStock({userId, marketId, side,price, quantity:quantityNeeded})
-        // console.log("minted")
-        // console.dir(ORDERBOOK,{depth: null})
+        publishOrderbookUpdate(marketId, ORDERBOOK.get(marketId)!)
     }
 
     //update user's holding of market to quantity-quantityNeeded
@@ -224,7 +225,7 @@ const buyNoOrder = async ({
     let availableQuantity = 0
     let availableYesQuantity = 0
 
-    let market = ORDERBOOK.get(marketId)
+    let market = ORDERBOOK.get(marketId)!
     const noPriceLevel = market?.no?.get(price)
     const yesPriceLevel = market?.yes?.get(10 - price)
     const revertedYesPriceLevel = market?.yes?.get(price)
@@ -320,6 +321,7 @@ const buyNoOrder = async ({
     if (quantityNeeded > 0) {
         //convert it to opposite side and place in orderbook
         mintOppositeStock({userId, marketId, side, price, quantity:quantityNeeded})
+        publishOrderbookUpdate(marketId, ORDERBOOK.get(marketId)!)
     }
 
     //update user's holding of market to quantity-quantityNeeded
@@ -393,6 +395,7 @@ export const sellYesOrder = async ({userId, marketId, price, side, quantity}: Or
 
     if (remainingQty > 0) {
         placeSellOrder({userId,marketId,price,quantity, side})
+        publishOrderbookUpdate(marketId, ORDERBOOK.get(marketId)!)
     }
 
      return {
@@ -411,7 +414,7 @@ export const sellNoOrder = async ({userId, marketId, price, side, quantity}: Ord
     let remainingQty = quantity
     const TOTAL = 1000
     const oppositePrice = TOTAL - price
-    const market = ORDERBOOK.get(marketId)
+    const market = ORDERBOOK.get(marketId)!
 
     const yesPriceLevel =  market?.yes.get(1000 - price)
     const noPriceLevel = market?.no.get(price)
@@ -457,6 +460,7 @@ export const sellNoOrder = async ({userId, marketId, price, side, quantity}: Ord
 
     if (remainingQty > 0) {
         placeSellOrder({userId,marketId,price,quantity, side})
+        publishOrderbookUpdate(marketId, ORDERBOOK.get(marketId)!)        
     }
     
     return {
