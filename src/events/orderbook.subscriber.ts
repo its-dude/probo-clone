@@ -1,4 +1,5 @@
 import { Orderbook } from "../types/orderbook"
+import { broadcastToMarket } from "../websockets/server"
 import { eventBus } from "./eventBus"
 
 export const initOrderbookSubscriber = () => {

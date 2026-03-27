@@ -8,9 +8,12 @@ import { Orderbook } from "./types/orderbook"
 import { orderRouter } from "./routes/order.routes"
 import { marketRouter } from "./routes/market.routes"
 import { initOrderbookSubscriber } from "./events/orderbook.subscriber"
+import { initWebsocketServer } from "./websockets/server"
 
 const app = express()
 const server = http.createServer(app)
+
+initWebsocketServer(server)
 
 export const ORDERBOOK = new Map<number, Orderbook>()
 initOrderbookSubscriber()
