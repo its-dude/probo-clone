@@ -5,6 +5,18 @@ export const createWallet = (data: { userId: number, balance: number }) => {
     return prisma.wallet.create({ data })
 }
 
+export const resetWallet = (userId: number) => {
+    return prisma.wallet.update({
+        where: {
+            userId
+        },
+        data: {
+            balance: 1000000,
+            locked: 0
+        }
+    })
+}
+
 export const getUserWalletById = (userId: number) => {
     return prisma.wallet.findUnique({
         where: {

@@ -106,3 +106,17 @@ export const deleteManyByMarketIdTx = (tx: Prisma.TransactionClient, marketId: n
         }
     })
 }
+
+export const getHoldingsByUserAndMarketId = (userId: number, marketId: number) => {
+    return prisma.holding.findMany({
+        where: {
+            userId,
+            marketId
+        },
+        select:{
+            side: true,
+            quantity: true,
+            locked: true
+        }
+    })
+}

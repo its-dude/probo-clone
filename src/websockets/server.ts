@@ -49,7 +49,7 @@ export const initWebsocketServer = (server: Server) => {
             // SUBSCRIBE
             if (data.type === "subscribe") {
                 let sockets = marketSockets.get(data.marketId)
-
+                console.log("user subscribed")
                 if (!sockets) {
                     sockets = new Set()
                     marketSockets.set(data.marketId, sockets)
@@ -70,6 +70,7 @@ export const initWebsocketServer = (server: Server) => {
         })
 
         socket.on("close", () => {
+            console.log("unsubscribed")
             userSockets.delete(userId)
             socketToUser.delete(socket)
 
