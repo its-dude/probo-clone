@@ -97,6 +97,8 @@ const buyYesOrder = async ({
 
     if (yesPriceLevel && availableQuantity > 0) {
         for (let [sellerId, order] of yesPriceLevel.orders) {
+            if (userId == sellerId) continue
+
             const toTake = Math.min(order.quantity, quantityNeeded)
 
             yesPriceLevel.total -= toTake
@@ -121,6 +123,7 @@ const buyYesOrder = async ({
 
     if (quantityNeeded > 0 && availableNoQuantity > 0 && noPriceLevel) {
         for (let [sellerId, order] of noPriceLevel.orders) {
+            if (userId == sellerId) continue            
             if (order.type === "reverted") continue
             
             const toTake = Math.min(order.quantity, quantityNeeded)
@@ -147,6 +150,7 @@ const buyYesOrder = async ({
 
     if (quantityNeeded > 0 && availableNoQuantity > 0 && revertedNoPriceLevel) {
         for (let [sellerId, order] of revertedNoPriceLevel.orders) {
+            if (userId == sellerId) continue            
             const toTake = Math.min(order.quantity, quantityNeeded)
 
             revertedNoPriceLevel.total -= toTake
@@ -204,6 +208,8 @@ const buyNoOrder = async ({
 
     if (noPriceLevel && availableQuantity > 0) {
         for (let [sellerId, order] of noPriceLevel.orders) {
+            if (userId == sellerId) continue
+
             const toTake = Math.min(order.quantity, quantityNeeded)
 
             noPriceLevel.total -= toTake
@@ -224,6 +230,7 @@ const buyNoOrder = async ({
 
     if (quantityNeeded > 0 && availableYesQuantity > 0 && yesPriceLevel) {
         for (let [sellerId, order] of yesPriceLevel.orders) {
+            if (userId == sellerId) continue            
             if (order.type === "reverted") continue
             
             const toTake = Math.min(order.quantity, quantityNeeded)
@@ -244,6 +251,8 @@ const buyNoOrder = async ({
 
     if (quantityNeeded > 0 && availableYesQuantity > 0 && revertedYesPriceLevel) {
         for (let [sellerId, order] of revertedYesPriceLevel.orders) {
+            if (userId == sellerId) continue
+                        
             const toTake = Math.min(order.quantity, quantityNeeded)
 
             revertedYesPriceLevel.total -= toTake
