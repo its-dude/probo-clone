@@ -1,7 +1,7 @@
 import express from "express"
-import { resolve } from "../controllers/market.controller"
+import { marketController } from "../controllers/index.controller"
 import { authMiddleware } from "../middlewares/auth.middleware"
 
 export const marketRouter = express.Router()
 
-marketRouter.post('/:marketId/resolve', authMiddleware, resolve)
+marketRouter.post('/:marketId/resolve', authMiddleware, marketController.resolve)
