@@ -1,7 +1,23 @@
+import { Prisma } from "@prisma/client"
 import { prisma } from "../config/prisma"
 
 export const exchangeWithBuyer = async (seller: { id: number, side: "YES" | "NO", price: number }, buyer: { id: number, side: "YES" | "NO", price: number }, marketId: number, quantity: number) => {
+
     return await prisma.$transaction(async (tx) => {
+
+        await tx.$queryRaw`
+                SELECT id FROM "Wallet"
+                WHERE "userId" IN (${buyer.id}, ${seller.id})
+                FOR UPDATE
+            `;
+
+        await tx.$queryRaw`
+                SELECT id FROM "Holding"
+                WHERE "userId" IN (${buyer.id}, ${seller.id})
+                AND "marketId" = ${marketId}
+                FOR UPDATE
+            `;
+
         const sellerTotalPrice = seller.price * quantity
         const buyerTotalPrice = buyer.price * quantity
 
@@ -70,15 +86,29 @@ export const exchangeWithBuyer = async (seller: { id: number, side: "YES" | "NO"
             }
         })
 
-    })
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, })
 }
 
 export const exchangeBetweenSeller = async (sellerA: { id: number, side: "YES" | "NO", price: number }, sellerB: { id: number, side: "YES" | "NO", price: number }, marketId: number, quantity: number) => {
     return await prisma.$transaction(async (tx) => {
+
+        await tx.$queryRaw`
+                SELECT id FROM "Wallet"
+                WHERE "userId" IN (${sellerA.id}, ${sellerB.id})
+                FOR UPDATE
+            `;
+
+        await tx.$queryRaw`
+                SELECT id FROM "Holding"
+                WHERE "userId" IN (${sellerA.id}, ${sellerB.id})
+                AND "marketId" = ${marketId}
+                FOR UPDATE
+            `;
+
         const totalPriceA = quantity * sellerA.price
         const totalPriceB = quantity * sellerB.price
 
-        await prisma.wallet.update({
+        await tx.wallet.update({
             where: {
                 userId: sellerB.id
             },
@@ -87,7 +117,7 @@ export const exchangeBetweenSeller = async (sellerA: { id: number, side: "YES" |
             }
         })
 
-        await prisma.wallet.update({
+        await tx.wallet.update({
             where: {
                 userId: sellerA.id
             },
@@ -96,7 +126,7 @@ export const exchangeBetweenSeller = async (sellerA: { id: number, side: "YES" |
             }
         })
 
-        await prisma.holding.update({
+        await tx.holding.update({
             where: {
                 userId_marketId_side: {
                     userId: sellerB.id,
@@ -109,7 +139,7 @@ export const exchangeBetweenSeller = async (sellerA: { id: number, side: "YES" |
             }
         })
 
-        await prisma.holding.update({
+        await tx.holding.update({
             where: {
                 userId_marketId_side: {
                     userId: sellerA.id,
@@ -122,12 +152,26 @@ export const exchangeBetweenSeller = async (sellerA: { id: number, side: "YES" |
             }
         })
 
-    })
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, })
 }
 
 export const BuyFromSeller = async (buyer: { id: number, side: "YES" | "NO", price: number }, seller: { id: number, side: "YES" | "NO", price: number }, marketId: number, quantity: number) => {
 
     return prisma.$transaction(async (tx) => {
+
+        await tx.$queryRaw`
+                SELECT id FROM "Wallet"
+                WHERE "userId" IN (${buyer.id}, ${seller.id})
+                FOR UPDATE
+            `;
+
+        await tx.$queryRaw`
+                SELECT id FROM "Holding"
+                WHERE "userId" IN (${buyer.id}, ${seller.id})
+                AND "marketId" = ${marketId}
+                FOR UPDATE
+            `;
+
         //update balance
         await tx.wallet.update({
             where: {
@@ -194,13 +238,27 @@ export const BuyFromSeller = async (buyer: { id: number, side: "YES" | "NO", pri
             }
         })
 
-    })
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, })
 
 }
 
 export const BuyFromBuyer = async (buyerA: { id: number, side: "YES" | "NO", price: number }, buyerB: { id: number, side: "YES" | "NO", price: number }, marketId: number, quantity: number) => {
 
     return prisma.$transaction(async (tx) => {
+
+        await tx.$queryRaw`
+                SELECT id FROM "Wallet"
+                WHERE "userId" IN (${buyerA.id}, ${buyerB.id})
+                FOR UPDATE
+            `;
+
+        await tx.$queryRaw`
+                SELECT id FROM "Holding"
+                WHERE "userId" IN (${buyerA.id}, ${buyerB.id})
+                AND "marketId" = ${marketId}
+                FOR UPDATE
+            `;
+
         //update wallet
         await tx.wallet.update({
             where: {
@@ -290,5 +348,5 @@ export const BuyFromBuyer = async (buyerA: { id: number, side: "YES" | "NO", pri
         }
 
 
-    })
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, })
 }
