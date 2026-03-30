@@ -3,7 +3,7 @@ import { publishOrderbookUpdate } from "../events/orderbook.publisher"
 import { holdingRepository, marketRepository, walletRepository } from "../repositories/index.repo"
 import { OrderEntry } from "../types/orderbook"
 import { orderMapToObject } from "../utils/mapToObject"
-import { exchangeBetweenSeller, exchangeWithBuyer } from "./trade.services"
+import { BuyFromBuyer, BuyFromSeller, exchangeBetweenSeller, exchangeWithBuyer } from "./trade.services"
 
 type Order = {
     price: number,
@@ -104,21 +104,9 @@ const buyYesOrder = async ({
             quantityNeeded -= toTake
 
             if (order.type == "sell") {
-                //decreaseHoldingsLock
-                await holdingRepository.unlockHolding(sellerId, marketId, side, toTake)
-                //updateBalance
-                await walletRepository.creditBalanceByUserId(sellerId, toTake * price)
-
-            } else { //type == reverted
-                //increaseNoHoldingOfSeller
-                const userHolding = await holdingRepository.findHolding(sellerId, marketId, "NO")
-                if (userHolding) {
-                    await holdingRepository.creditHolding(sellerId, marketId, "NO", toTake)
-                } else {
-                    await holdingRepository.createHolding(sellerId, marketId, "NO", toTake)
-                }
-                //decreaseLockedMoney
-                await walletRepository.deductLockedFunds(sellerId, (1000 -price) * quantity)
+                await BuyFromSeller( {id:userId, side, price}, {id: sellerId, side, price}, marketId, toTake)
+            } else {
+                 await BuyFromBuyer({id: userId, side, price}, {id: sellerId, side: "NO", price:1000-price}, marketId, toTake)
             }
             
             if (order.quantity === 0) {
@@ -142,10 +130,7 @@ const buyYesOrder = async ({
             quantityNeeded -= toTake
 
             if (order.type == "sell") {
-                //decrease locked holdings
-                await holdingRepository.unlockHolding(sellerId, marketId, "NO", toTake)
-                //increase wallet balance
-                await walletRepository.creditBalanceByUserId(sellerId, toTake * (1000 - price))
+                await BuyFromSeller({id:userId, side, price}, {id: sellerId, side:"NO", price: 1000-price}, marketId, toTake)
             }
 
             if (order.quantity === 0) {
@@ -167,18 +152,9 @@ const buyYesOrder = async ({
             revertedNoPriceLevel.total -= toTake
             order.quantity -= toTake
             quantityNeeded -= toTake
+            if (order.type != "reverted")continue
 
-            if (order.type == "reverted") {
-                const userHolding = await holdingRepository.findHolding(sellerId, marketId, side)
-                //increase holdings
-                if (userHolding) {
-                    await holdingRepository.creditHolding(sellerId, marketId, side, toTake)
-                } else {
-                    await holdingRepository.createHolding(sellerId, marketId, side, toTake)
-                }
-                //decrease locked wallet 
-                await walletRepository.deductLockedFunds(sellerId, toTake * (1000 - price))
-            }
+            await BuyFromBuyer({id: userId, side, price}, {id: sellerId, side, price: 1000-price}, marketId, toTake)
 
             if (order.quantity === 0) revertedNoPriceLevel.orders.delete(sellerId)
             if (quantityNeeded <= 0) break
@@ -192,16 +168,6 @@ const buyYesOrder = async ({
         mintOppositeStock({userId, marketId, side,price, quantity:quantityNeeded})
         publishOrderbookUpdate(marketId, ORDERBOOK.get(marketId)!)
     }
-
-    //update user's holding of market to quantity-quantityNeeded
-    const userHolding = await holdingRepository.findHolding(userId, marketId, "YES")
-    if (userHolding) {
-        await holdingRepository.creditHolding(userId, marketId, "YES", quantity - quantityNeeded)
-    } else {
-        await holdingRepository.createHolding(userId, marketId, "YES", quantity - quantityNeeded)
-    }
-    //decrease user locked amount to quantity - quantityneeded
-    await walletRepository.deductLockedFunds(userId, price * (quantity - quantityNeeded))
 
     return {
         message: `Buy order for yes added for marketId ${marketId}`,
@@ -245,22 +211,9 @@ const buyNoOrder = async ({
             quantityNeeded -= toTake
 
             if (order.type == "sell") {
-                //decreaseHoldingsLock
-                await holdingRepository.unlockHolding(sellerId, marketId, side, toTake)
-                //updateBalance
-                await walletRepository.creditBalanceByUserId(sellerId, toTake * price)
-
-            } else { //type == reverted
-                //increaseYesHoldingOfSeller
-                const holding = await holdingRepository.findHolding(sellerId, marketId, "YES")
-                if (holding) {
-                    await holdingRepository.creditHolding(sellerId, marketId, "YES", toTake)
-                }else {
-                    await holdingRepository.createHolding(sellerId, marketId, "YES", toTake)
-                }
-                //decreaseLockedMoney
-                await walletRepository.deductLockedFunds(sellerId, toTake * (1000 - price))
-
+                await BuyFromSeller( {id:userId, side, price}, {id: sellerId, side, price}, marketId, toTake)
+            } else {
+                 await BuyFromBuyer({id: userId, side, price}, {id: sellerId, side: "YES", price:1000-price}, marketId, toTake)
             }
              
             if (order.quantity === 0) noPriceLevel.orders.delete(sellerId)
@@ -279,12 +232,9 @@ const buyNoOrder = async ({
             order.quantity -= toTake
             quantityNeeded -= toTake
 
-            if (order.type == "sell") {
-                //decrease locked holdings
-                await holdingRepository.unlockHolding(sellerId, marketId, "YES", toTake)
-                //increase wallet balance
-                await walletRepository.creditBalanceByUserId(sellerId, toTake * price)
-            }
+            if (order.type !== "sell")continue
+
+            await BuyFromSeller( {id:userId, side, price}, {id: sellerId, side: "YES", price: 1000-price}, marketId, toTake)
 
             if (order.quantity === 0) yesPriceLevel.orders.delete(sellerId)
             if (quantityNeeded <= 0) break
@@ -301,15 +251,7 @@ const buyNoOrder = async ({
             quantityNeeded -= toTake
 
             if (order.type == "reverted") {
-                //increase holdings
-                const holding  = await holdingRepository.findHolding(sellerId, marketId, side)
-                if (holding) {
-                    await holdingRepository.creditHolding(sellerId, marketId, side, toTake)
-                }else {
-                    await holdingRepository.createHolding(sellerId, marketId, side, toTake)
-                }
-                //decrease locked wallet 
-                await walletRepository.deductLockedFunds(sellerId, (1000 - price) * toTake)
+                await BuyFromBuyer( {id:userId, side, price}, {id: sellerId, side, price: 1000 - price}, marketId, toTake)
             }
 
             if (order.quantity === 0) revertedYesPriceLevel.orders.delete(sellerId)
@@ -323,15 +265,6 @@ const buyNoOrder = async ({
         mintOppositeStock({userId, marketId, side, price, quantity:quantityNeeded})
         publishOrderbookUpdate(marketId, ORDERBOOK.get(marketId)!)
     }
-
-    //update user's holding of market to quantity-quantityNeeded
-    const userHolding = await holdingRepository.findHolding(userId, marketId, "NO")
-    if (userHolding) {
-        await holdingRepository.creditHolding(userId, marketId, "NO", quantity - quantityNeeded)
-    } else {
-        await holdingRepository.createHolding(userId, marketId, "NO", quantity - quantityNeeded)
-    }
-    await walletRepository.deductLockedFunds(userId, price* (quantity-quantityNeeded))
 
     return {
         message: `Buy order for no added for ${marketId}`,

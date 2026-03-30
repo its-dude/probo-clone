@@ -1,9 +1,9 @@
 import { prisma } from "../config/prisma"
 
-export const exchangeWithBuyer = async (seller:{id:number,side: "YES"|"NO", price: number}, buyer:{id: number, side: "YES"|"NO", price: number}, marketId: number, quantity: number)=>{
-    return await prisma.$transaction( async (tx) => {
-         const sellerTotalPrice = seller.price*quantity
-         const buyerTotalPrice = buyer.price *quantity
+export const exchangeWithBuyer = async (seller: { id: number, side: "YES" | "NO", price: number }, buyer: { id: number, side: "YES" | "NO", price: number }, marketId: number, quantity: number) => {
+    return await prisma.$transaction(async (tx) => {
+        const sellerTotalPrice = seller.price * quantity
+        const buyerTotalPrice = buyer.price * quantity
 
         const buyerHolding = await tx.holding.findUnique({
             where: {
@@ -14,41 +14,41 @@ export const exchangeWithBuyer = async (seller:{id:number,side: "YES"|"NO", pric
                 }
             }
         })
-        
-         await tx.wallet.update({
+
+        await tx.wallet.update({
             where: {
                 userId: buyer.id
             },
             data: {
-                locked: {decrement: buyerTotalPrice}
+                locked: { decrement: buyerTotalPrice }
             }
-         })
+        })
 
-         await tx.wallet.update({
+        await tx.wallet.update({
             where: {
                 userId: seller.id
             },
             data: {
-                balance: {increment: sellerTotalPrice}
+                balance: { increment: sellerTotalPrice }
             }
-         })
+        })
 
         if (buyerHolding) {
             await tx.holding.update({
-               where:{
-                   userId_marketId_side:{
-                       userId: buyer.id,
-                       marketId,
-                       side: buyer.side
-                   }
-               },
-               data: {
-                   quantity: {increment: quantity}
-               }
+                where: {
+                    userId_marketId_side: {
+                        userId: buyer.id,
+                        marketId,
+                        side: buyer.side
+                    }
+                },
+                data: {
+                    quantity: { increment: quantity }
+                }
             })
-        }else {
+        } else {
             await tx.holding.create({
-                data:{
+                data: {
                     userId: buyer.id,
                     marketId,
                     side: buyer.side,
@@ -66,24 +66,24 @@ export const exchangeWithBuyer = async (seller:{id:number,side: "YES"|"NO", pric
                 }
             },
             data: {
-                quantity: { decrement: quantity}
+                quantity: { decrement: quantity }
             }
         })
 
     })
 }
 
-export const exchangeBetweenSeller = async (sellerA:{id:number,side: "YES"|"NO", price: number}, sellerB:{id: number, side: "YES"|"NO", price: number}, marketId: number, quantity: number) => {
-    return await prisma.$transaction( async (tx) => {
-        const totalPriceA = quantity*sellerA.price
-        const totalPriceB = quantity*sellerB.price
+export const exchangeBetweenSeller = async (sellerA: { id: number, side: "YES" | "NO", price: number }, sellerB: { id: number, side: "YES" | "NO", price: number }, marketId: number, quantity: number) => {
+    return await prisma.$transaction(async (tx) => {
+        const totalPriceA = quantity * sellerA.price
+        const totalPriceB = quantity * sellerB.price
 
         await prisma.wallet.update({
-            where:{
+            where: {
                 userId: sellerB.id
             },
             data: {
-                balance: {increment: totalPriceB}
+                balance: { increment: totalPriceB }
             }
         })
 
@@ -92,7 +92,7 @@ export const exchangeBetweenSeller = async (sellerA:{id:number,side: "YES"|"NO",
                 userId: sellerA.id
             },
             data: {
-                balance: {increment: totalPriceA}
+                balance: { increment: totalPriceA }
             }
         })
 
@@ -105,7 +105,7 @@ export const exchangeBetweenSeller = async (sellerA:{id:number,side: "YES"|"NO",
                 }
             },
             data: {
-                locked: {decrement: quantity}
+                locked: { decrement: quantity }
             }
         })
 
@@ -118,9 +118,177 @@ export const exchangeBetweenSeller = async (sellerA:{id:number,side: "YES"|"NO",
                 }
             },
             data: {
-                locked: {decrement: quantity}
+                locked: { decrement: quantity }
             }
         })
+
+    })
+}
+
+export const BuyFromSeller = async (buyer: { id: number, side: "YES" | "NO", price: number }, seller: { id: number, side: "YES" | "NO", price: number }, marketId: number, quantity: number) => {
+
+    return prisma.$transaction(async (tx) => {
+        //update balance
+        await tx.wallet.update({
+            where: {
+                userId: buyer.id
+            },
+            data: {
+                locked: { decrement: quantity * buyer.price }
+            }
+        })
+
+        await tx.wallet.update({
+            where: {
+                userId: seller.id
+            },
+            data: {
+                balance: { increment: quantity * seller.price }
+            }
+        })
+        // update holdings
+        const buyerHolding = await tx.holding.findUnique({
+            where: {
+                userId_marketId_side: {
+                    userId: buyer.id,
+                    side: buyer.side,
+                    marketId
+                }
+            }
+        })
+
+        if (!buyerHolding) {
+            await tx.holding.create({
+                data: {
+                    userId: buyer.id,
+                    marketId,
+                    side: buyer.side,
+                    quantity
+                }
+            })
+        } else {
+            await tx.holding.update({
+                where: {
+                    userId_marketId_side: {
+                        userId: buyer.id,
+                        marketId,
+                        side: buyer.side,
+                    }
+                },
+                data: {
+                    quantity: { increment: quantity }
+                }
+            })
+        }
+
+        await tx.holding.update({
+            where: {
+                userId_marketId_side: {
+                    userId: seller.id,
+                    marketId,
+                    side: seller.side,
+                }
+            },
+            data: {
+                quantity: { decrement: quantity }
+            }
+        })
+
+    })
+
+}
+
+export const BuyFromBuyer = async (buyerA: { id: number, side: "YES" | "NO", price: number }, buyerB: { id: number, side: "YES" | "NO", price: number }, marketId: number, quantity: number) => {
+
+    return prisma.$transaction(async (tx) => {
+        //update wallet
+        await tx.wallet.update({
+            where: {
+                userId: buyerA.id
+            },
+            data: {
+                locked: { decrement: quantity * buyerA.price }
+            }
+        })
+
+        await tx.wallet.update({
+            where: {
+                userId: buyerB.id
+            },
+            data: {
+                locked: { decrement: quantity * buyerB.price }
+            }
+        })
+
+        //update holdings
+        const buyerAHolding = await tx.holding.findUnique({
+            where: {
+                userId_marketId_side: {
+                    userId: buyerA.id,
+                    side: buyerA.side,
+                    marketId
+                }
+            }
+        })
+
+        if (!buyerAHolding) {
+            await tx.holding.create({
+                data: {
+                    userId: buyerA.id,
+                    marketId,
+                    side: buyerA.side,
+                    quantity
+                }
+            })
+        } else {
+            await tx.holding.update({
+                where: {
+                    userId_marketId_side: {
+                        userId: buyerA.id,
+                        marketId,
+                        side: buyerA.side,
+                    }
+                },
+                data: {
+                    quantity: { increment: quantity }
+                }
+            })
+        }
+
+        const buyerBHolding = await tx.holding.findUnique({
+            where: {
+                userId_marketId_side: {
+                    userId: buyerB.id,
+                    side: buyerB.side,
+                    marketId
+                }
+            }
+        })
+
+        if (!buyerBHolding) {
+            await tx.holding.create({
+                data: {
+                    userId: buyerB.id,
+                    marketId,
+                    side: buyerB.side,
+                    quantity
+                }
+            })
+        } else {
+            await tx.holding.update({
+                where: {
+                    userId_marketId_side: {
+                        userId: buyerB.id,
+                        marketId,
+                        side: buyerB.side,
+                    }
+                },
+                data: {
+                    quantity: { increment: quantity }
+                }
+            })
+        }
+
 
     })
 }
