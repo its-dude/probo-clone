@@ -29,6 +29,7 @@ const validateBuyOrder = async (order: Order) => {
     const market = await marketRepository.getMarketById(marketId);
     if (!market) throw new Error("Market not found");
 
+    if (market.resolution !== null) throw new Error("Market settled")
     return true;
 };
 
