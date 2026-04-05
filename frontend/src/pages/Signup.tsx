@@ -1,107 +1,120 @@
-import { Link } from "react-router-dom"
+import { Input } from "../components/Input"
+import { AddUser } from "../icons/addUser"
+import { FormBottomWarning } from "../components/FormBottomWarning"
+import axios from "axios"
+import {  useNavigate } from "react-router-dom"
+import { useState } from "react"
+
 
 const Signup = () => {
-    return <>
-        <div className="min-h-screen flex items-center justify-center bg-(--neutral-100) px-4 sm:px-6 lg:px-8">
+    const navigate  = useNavigate()
+    const [firstName, setFirstName] = useState("")
+    const [lastName, setLastName] = useState("")
+    const [email, setEmail] = useState("")
+    const [password, setPassword] = useState("")
 
-            <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-5 sm:p-6">
+    const handleOnClick = async () => {
+        try {
+            if (email !== "" && password !== "" && firstName !== "" && lastName !== "") {
+                const response = await axios.post("http://localhost:7803/api/v1/auth/signup", {
+                    firstName,
+                    lastName,
+                    email,
+                    password
+                });
 
-                <h1 className="text-center text-lg sm:text-xl font-semibold mb-5">
-                    probo.
-                </h1>
+                if (response.status !== 200) {
+                    alert(response.data.message);
+                }else {
+                    navigate("/login")
+                }
+            } else {
+                alert("input box is empty");
+            }
 
-                <div className="text-center mb-6">
-                    <h2 className="text-xl sm:text-2xl font-semibold text-(--neutral-900)">
-                        Create your account
-                    </h2>
-                    <p className="text-sm text-(--neutral-500) mt-1">
-                        Enter your details to get started
-                    </p>
-                </div>
+        } catch (err) {
+            console.log(err);
+        }
 
-                <form className="space-y-4">
+    }
 
-                    <div>
-                        <label className="text-sm font-medium text-(--neutral-900)">
-                            Full Name
-                        </label>
-                        <input
-                            type="text"
-                            placeholder="John Doe"
-                            className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-300 
-                 focus:outline-none focus:ring-2 focus:ring-(--primary-500) 
-                 focus:border-(--primary-500) transition"
-                        />
-                    </div>
+return (
+  <div className="min-h-screen w-full bg-neutral-50 px-4 py-6">
+    
+    {/* Header */}
+    <div className="flex justify-between items-center max-w-6xl mx-auto">
+      <div className="text-2xl sm:text-3xl font-semibold">probi.</div>
 
-                    <div>
-                        <label className="text-sm font-medium text-(--neutral-900)">
-                            Email Address
-                        </label>
-                        <input
-                            type="email"
-                            placeholder="hello@example.com"
-                            className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-300 
-                 focus:outline-none focus:ring-2 focus:ring-(--primary-500) 
-                 focus:border-(--primary-500) transition"
-                        />
-                    </div>
+      <button onClick={ ()=> navigate("/login")} className="bg-blue-500 hover:bg-blue-600 px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base text-white tracking-wide rounded-md cursor-pointer">
+        login
+      </button>
+    </div>
 
-                    <div>
-                        <label className="text-sm font-medium text-(--neutral-900)">
-                            Password
-                        </label>
-                        <input
-                            type="password"
-                            placeholder="••••••••"
-                            className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-300 
-                 focus:outline-none focus:ring-2 focus:ring-(--primary-500) 
-                 focus:border-(--primary-500) transition"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-(--neutral-900)">
-                            Confirm Password
-                        </label>
-                        <input
-                            type="password"
-                            placeholder="••••••••"
-                            className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-300 
-                 focus:outline-none focus:ring-2 focus:ring-(--primary-500) 
-                 focus:border-(--primary-500) transition"
-                        />
-                    </div>
-
-                    <div className="flex items-start gap-2 text-sm">
-                        <input
-                            type="checkbox"
-                            className="mt-1 accent-(--primary-500) cursor-pointer"
-                        />
-                        <span className="text-(--neutral-500) leading-tight">
-                            I agree to the terms & conditions
-                        </span>
-                    </div>
-
-                    <button
-                        className="w-full bg-(--primary-500) text-white py-2.5 rounded-lg 
-               hover:bg-(--primary-700) active:scale-[0.99] 
-               transition font-medium"
-                    >
-                        Sign up
-                    </button>
-
-                    <p className="text-sm text-center text-(--neutral-500)">
-                        Already have an account?
-                        <Link to={"/login"} className="text-(--primary-500) hover:underline font-medium">
-                            Log in
-                        </Link>
-                    </p>
-
-                </form>
-            </div>
+    {/* Container */}
+    <div className="max-w-md sm:max-w-xl lg:max-w-2xl mx-auto mt-10 sm:mt-14">
+      
+      {/* Form Header */}
+      <div className="flex flex-col items-center text-center">
+        <div className="p-3 sm:p-4 rounded-2xl border border-gray-300 bg-white">
+          <AddUser />
         </div>
-    </>
+
+        <div className="mt-4 font-semibold text-2xl sm:text-3xl">
+          Signup
+        </div>
+
+        <div className="text-sm sm:text-base text-neutral-400">
+          please enter your details
+        </div>
+      </div>
+
+      {/* Form */}
+      <div className="w-full max-w-xs sm:max-w-md mx-auto flex flex-col gap-5 sm:gap-6 mt-8 sm:mt-10">
+
+        <Input
+          onChange={(e) => setFirstName(e.target.value)}
+          label="First Name"
+          name="firstName"
+          placeholder="John"
+        />
+
+        <Input
+          onChange={(e) => setLastName(e.target.value)}
+          label="Last Name"
+          name="lastName"
+          placeholder="Doe"
+        />
+
+        <Input
+          onChange={(e) => setEmail(e.target.value)}
+          label="Email Address"
+          name="email"
+          placeholder="hello@email.com"
+        />
+
+        <Input
+          onChange={(e) => setPassword(e.target.value)}
+          label="Password"
+          name="password"
+          placeholder="hello@123"
+        />
+
+        <button
+          onClick={handleOnClick}
+          className="bg-blue-500 hover:bg-blue-600 py-2 px-4 rounded-md text-white cursor-pointer active:scale-95 transition"
+        >
+          Sign up
+        </button>
+
+        <FormBottomWarning
+          message={"Already have an account?"}
+          buttonText={"Login to your account"}
+          to={"/login"}
+        />
+      </div>
+    </div>
+  </div>
+);
 }
 
 export default Signup
